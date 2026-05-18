@@ -1,0 +1,5 @@
+build/
+.superpowers/
+docs/superpowers/
+handover.md
+CLAUDE.md
