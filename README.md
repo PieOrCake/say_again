@@ -29,3 +29,13 @@ If an LLM creating software upsets you, then perhaps this repo isn't for you. Mo
 
 1. Download `SayAgain.dll` from the [releases page](../../releases)
 2. Place it in your Nexus addons folder
+
+## Licence
+
+MIT — see [LICENSE](LICENSE).
+
+## Third-Party Licences
+
+- [Dear ImGui](https://github.com/ocornut/imgui) — MIT licence, Copyright (c) 2014-2021 Omar Cornut
+- [nlohmann/json](https://github.com/nlohmann/json) — MIT licence, Copyright (c) 2013-2025 Niels Lohmann
+- [Nexus API](https://raidcore.gg/Nexus) — MIT licence, Copyright (c) Raidcore.GG
