@@ -19,6 +19,7 @@ If an LLM creating software upsets you, then perhaps this repo isn't for you. Mo
 - Tag messages to specific maps — they only appear when you're there
 - Multi-line messages sent as sequential chat posts
 - Random word selection: `You are {amazing|beautiful|wonderful}!`
+- Chat codes (waypoints, items, skills, etc.) are resolved to readable names in tooltips, previews and button labels
 - Right-click a message button to pick a specific channel before sending
 - Floating icon with customisable size, position, and animation style
 - Pin the panel open or close it automatically after each send
