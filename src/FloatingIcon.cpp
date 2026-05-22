@@ -13,6 +13,7 @@
 #include "SharedState.h"
 #include "Messages.h"
 #include "MapData.h"
+#include "GW2API.h"
 
 #define TEX_SA_ICON "TEX_SA_ICON"
 
@@ -452,7 +453,8 @@ void RenderFloatingIcon() {
 
             if (sectionCol % cols != 0) ImGui::SameLine();
             ImGui::PushID(i);
-            if (ImGui::Button(visible[i]->shortLabel.c_str(), ImVec2(btnW, btnH)))
+            std::string lbl = GW2API::ResolveDisplay(visible[i]->shortLabel);
+            if (ImGui::Button(lbl.c_str(), ImVec2(btnW, btnH)))
                 PostMessage(*visible[i], "");
             // Badge overlay for multi-line messages
             if (visible[i]->fullText.find('\n') != std::string::npos) {
@@ -473,8 +475,10 @@ void RenderFloatingIcon() {
             if (ImGui::IsItemHovered()) {
                 anyHovered = true;
                 if (s_HoverIdx != i) { s_HoverIdx = i; s_HoverStart = ImGui::GetTime(); }
-                if (ImGui::GetTime() - s_HoverStart >= 1.0)
-                    ImGui::SetTooltip("%s", visible[i]->fullText.c_str());
+                if (ImGui::GetTime() - s_HoverStart >= 1.0) {
+                    std::string tip = GW2API::ResolveDisplay(visible[i]->fullText);
+                    ImGui::SetTooltip("%s", tip.c_str());
+                }
             }
             ImGui::PopID();
             ++sectionCol;

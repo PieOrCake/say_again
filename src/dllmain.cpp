@@ -11,6 +11,7 @@
 #include "Messages.h"
 #include "FloatingIcon.h"
 #include "MapData.h"
+#include "GW2API.h"
 
 // --- Addon metadata ---
 #define V_MAJOR    0
@@ -285,9 +286,16 @@ static void RenderDecoratedEditor(char* buf, size_t bufSize, bool resetState) {
     bool showX = s_DecLines.size() > 1;
 
     float lineH  = ImGui::GetFrameHeightWithSpacing();
+    float textH  = ImGui::GetTextLineHeightWithSpacing();
     float padY   = ImGui::GetStyle().WindowPadding.y * 2.0f;
     int   vis    = std::min((int)s_DecLines.size(), 6);
-    float childH = (float)vis * lineH + padY;
+    // Count how many lines will produce a preview row beneath them.
+    int   previewRows = 0;
+    for (int i = 0; i < vis; ++i) {
+        std::string preview = GW2API::ResolveDisplay(s_DecLines[i]);
+        if (preview != s_DecLines[i]) ++previewRows;
+    }
+    float childH = (float)vis * lineH + (float)previewRows * textH + padY;
 
     // Pre-calculate widths so the input doesn't fight with the X button
     float arrowW  = ImGui::CalcTextSize(">").x + ImGui::GetStyle().ItemSpacing.x;
@@ -333,6 +341,15 @@ static void RenderDecoratedEditor(char* buf, size_t bufSize, bool resetState) {
         if (lcd.wantsEnter && pendingEnterIdx == -1) {
             pendingEnterIdx    = i;
             pendingEnterCursor = lcd.enterCursorPos;
+        }
+
+        // Preview line: show resolved chat codes if the line contains any.
+        std::string preview = GW2API::ResolveDisplay(s_DecLines[i]);
+        if (preview != s_DecLines[i]) {
+            ImGui::Dummy(ImVec2(arrowW, 0)); ImGui::SameLine();
+            ImGui::PushStyleColor(ImGuiCol_Text, ImVec4(0.6f, 0.6f, 0.6f, 1.0f));
+            ImGui::TextWrapped("%s", preview.c_str());
+            ImGui::PopStyleColor();
         }
     }
 
@@ -513,8 +530,9 @@ static void AddonOptions() {
 
         ImGui::Text("%s", msg.shortLabel.c_str());
         ImGui::SameLine();
-        ImGui::TextDisabled("%.40s%s", msg.fullText.c_str(),
-            msg.fullText.size() > 40 ? "..." : "");
+        std::string preview = GW2API::ResolveDisplay(msg.fullText);
+        ImGui::TextDisabled("%.40s%s", preview.c_str(),
+            preview.size() > 40 ? "..." : "");
         ImGui::SameLine();
         if (ImGui::SmallButton("Edit")) {
             s_EditIdx    = i;
@@ -829,12 +847,14 @@ void AddonLoad(AddonAPI_t* aApi) {
     LoadSettings();
     LoadMessages();
     ScanIconDir();
+    GW2API::Initialize();
 
     APIDefs->Log(LOGL_INFO, "SayAgain", "Addon loaded");
 }
 
 void AddonUnload() {
     FloatingIcon_Shutdown();
+    GW2API::Shutdown();
     APIDefs->Events_Unsubscribe("EV_MUMBLE_IDENTITY_UPDATED", OnMumbleIdentityUpdated);
     APIDefs->InputBinds_Deregister("KB_SAY_AGAIN_TOGGLE");
     APIDefs->GUI_Deregister(AddonOptions);

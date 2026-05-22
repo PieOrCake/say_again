@@ -37,6 +37,8 @@ set(SOURCES
     src/dllmain.cpp
     src/Messages.cpp
     src/FloatingIcon.cpp
+    src/ChatLinks.cpp
+    src/GW2API.cpp
     ${IMGUI_SOURCES}
 )
 
@@ -51,6 +53,7 @@ target_link_libraries(SayAgain
     gdi32
     user32
     comdlg32
+    winhttp
 )
 
 target_link_options(SayAgain PRIVATE -Wl,--out-implib,SayAgain.lib -Wl,--strip-all)
