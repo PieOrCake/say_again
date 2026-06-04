@@ -123,6 +123,12 @@ static void PasteAndSendFromThread(std::string message) {
 
     constexpr int kDelay = 50;
 
+    // Tell Pie UI (replacement chat input) that an external send is in progress so it
+    // stands down its Enter-hijack. Keepalive: one ping per message keeps a multi-line
+    // burst covered (Pie UI suppresses for 1.5s per ping). Harmless no-op if no listener.
+    if (APIDefs && APIDefs->Events_RaiseNotification)
+        APIDefs->Events_RaiseNotification("EV_CHAT_INPUT:Sending");
+
     // Open chat if not already focused. While mounted (e.g. Skyscale), GW2 may consume the
     // first Enter as a mount action, so we retry and poll IsTextboxFocused for confirmation.
     bool focused = g_MumbleLink && g_MumbleLink->Context.IsTextboxFocused;
@@ -189,6 +195,9 @@ static void PostMessage(const ChatMessage& msg, const char* channelPrefix) {
                 if (i + 1 < lines.size())
                     std::this_thread::sleep_for(std::chrono::milliseconds(delay));
             }
+            // Release Pie UI immediately instead of waiting out the trailing 1.5s.
+            if (APIDefs && APIDefs->Events_RaiseNotification)
+                APIDefs->Events_RaiseNotification("EV_CHAT_INPUT:SendingDone");
         }).detach();
     } else {
         std::string msgPrefix = g_Settings.messagePrefix.empty() ? "" : g_Settings.messagePrefix + " ";
