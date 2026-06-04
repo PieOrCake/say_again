@@ -1,5 +1,6 @@
 #include "GW2API.h"
 #include "SharedState.h"
+#include "WaypointData.h"
 #include "nexus/Nexus.h"
 #include <windows.h>
 #include <winhttp.h>
@@ -12,6 +13,7 @@
 #include <unordered_map>
 #include <atomic>
 #include <string>
+#include <fstream>
 #include <cstdarg>
 
 namespace GW2API {
@@ -46,6 +48,64 @@ static bool s_FloorLoaded[3] = {false, false, false};  // c1/f1, c1/f49, c2/f1
 
 static uint64_t CacheKey(LinkType t, uint32_t id) {
     return (static_cast<uint64_t>(t) << 32) | id;
+}
+
+// Persistent cache file lives next to settings/messages in the addon dir.
+static std::string CacheFilePath() {
+    if (!APIDefs) return {};
+    const char* dir = APIDefs->Paths_GetAddonDirectory("SayAgain");
+    if (!dir) return {};
+    return std::string(dir) + "/chatcode_cache.json";
+}
+
+static std::atomic<bool> s_CacheDirty{false};
+
+static void SaveCacheToDisk() {
+    std::string path = CacheFilePath();
+    if (path.empty()) return;
+    nlohmann::json j = nlohmann::json::object();
+    {
+        std::lock_guard<std::mutex> lk(s_Mutex);
+        for (const auto& [key, result] : s_Cache) {
+            if (result.state != State::Resolved) continue;
+            uint8_t  type = static_cast<uint8_t>(key >> 32);
+            uint32_t id   = static_cast<uint32_t>(key & 0xFFFFFFFFu);
+            // Skip MapLink entries — those come from the static table or floors,
+            // which we already replay on startup. Persisting them would balloon
+            // the file unnecessarily.
+            if (type == static_cast<uint8_t>(LinkType::MapLink)) continue;
+            char buf[32];
+            snprintf(buf, sizeof(buf), "%u:%u", type, id);
+            j[buf] = result.display;
+        }
+    }
+    try {
+        std::ofstream f(path);
+        if (f) f << j.dump(2);
+    } catch (...) {}
+}
+
+static void LoadCacheFromDisk() {
+    std::string path = CacheFilePath();
+    if (path.empty()) return;
+    std::ifstream f(path);
+    if (!f) return;
+    try {
+        nlohmann::json j;
+        f >> j;
+        if (!j.is_object()) return;
+        std::lock_guard<std::mutex> lk(s_Mutex);
+        for (auto it = j.begin(); it != j.end(); ++it) {
+            unsigned type = 0, id = 0;
+            if (sscanf(it.key().c_str(), "%u:%u", &type, &id) != 2) continue;
+            if (!it.value().is_string()) continue;
+            uint64_t key = (static_cast<uint64_t>(type) << 32) | id;
+            CachedResult r;
+            r.display = it.value().get<std::string>();
+            r.state   = State::Resolved;
+            s_Cache.emplace(key, std::move(r));
+        }
+    } catch (...) {}
 }
 
 // --- HTTP ---
@@ -232,8 +292,17 @@ static void WorkerThread() {
         if (result.state != State::Resolved) result.state = State::Failed;
 
         uint64_t key = CacheKey(req.type, req.id);
-        std::lock_guard<std::mutex> lock(s_Mutex);
-        s_Cache[key] = std::move(result);
+        bool resolved = (result.state == State::Resolved);
+        {
+            std::lock_guard<std::mutex> lock(s_Mutex);
+            s_Cache[key] = std::move(result);
+        }
+        // Persist on every successful resolution. Cheap: file is tiny and
+        // resolutions trickle in one at a time.
+        if (resolved && req.type != LinkType::MapLink) {
+            s_CacheDirty = true;
+            SaveCacheToDisk();
+        }
     }
 }
 
@@ -252,6 +321,20 @@ void Initialize() {
                                    INTERNET_DEFAULT_HTTPS_PORT, 0);
         if (!s_Connect) LogF("WinHttpConnect failed (err=%lu)", GetLastError());
     }
+
+    // Seed the POI lookup from the bundled static table so waypoint tooltips
+    // resolve instantly on first launch, with no API call.
+    {
+        const auto& staticPois = WaypointData::GetStaticPois();
+        std::lock_guard<std::mutex> lk(s_Mutex);
+        for (const auto& [id, name] : staticPois)
+            s_PoiLookup.emplace(id, name);
+    }
+
+    // Load any per-(type,id) results the user has accumulated from prior
+    // sessions (items/skills/etc.) so those tooltips also skip the API.
+    LoadCacheFromDisk();
+
     s_Worker = std::thread(WorkerThread);
 }
 
