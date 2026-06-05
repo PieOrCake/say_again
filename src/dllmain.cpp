@@ -201,6 +201,7 @@ void SaveSettings() {
     j["custom_icon_name"]  = g_Settings.customIconName;
     j["multi_line_delay"]  = g_Settings.multiLineDelay;
     j["msg_prefix"]        = g_Settings.messagePrefix;
+    j["channel"]           = g_Settings.channel;
     std::ofstream f(dir + "/settings.json");
     if (f.is_open()) f << j.dump(2);
 }
@@ -222,6 +223,7 @@ static void LoadSettings() {
         if (j.contains("custom_icon_name")) g_Settings.customIconName = j["custom_icon_name"].get<std::string>();
         if (j.contains("multi_line_delay")) g_Settings.multiLineDelay = j["multi_line_delay"].get<int>();
         if (j.contains("msg_prefix"))      g_Settings.messagePrefix  = j["msg_prefix"].get<std::string>();
+        if (j.contains("channel"))         g_Settings.channel        = j["channel"].get<int>();
     } catch (...) {}
 }
 
