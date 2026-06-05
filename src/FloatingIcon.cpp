@@ -441,13 +441,26 @@ void RenderFloatingIcon() {
     if (ImGui::Begin("##sa_panel", nullptr, panelFlags)) {
         ImGui::PushStyleVar(ImGuiStyleVar_ItemSpacing, ImVec2(4, 4));
 
-        // FIX: collect right-click outside PushID scope so popup ID matches BeginPopup
-        static int    s_RightClickIdx = -1;
+        // FIX: collect right-click outside PushID scope so popup ID matches BeginPopup.
+        // s_PickerMsgIdx selects picker mode: -1 = set channel only, >=0 = also send that message.
+        static int    s_PickerMsgIdx  = -1;
         static int    s_HoverIdx      = -1;
         static double s_HoverStart    = 0.0;
         int pendingRightClick = -1;
 
         ImVec4 headerColour(0.86f, 0.75f, 0.31f, alpha);
+
+        // Clickable channel header — shows the sticky channel, opens picker in set-only mode.
+        {
+            char chLbl[64];
+            snprintf(chLbl, sizeof(chLbl), "\xe2\x96\xb8 %s", Channels::Label(g_Settings.channel)); // "▸ Name"
+            ImGui::PushStyleColor(ImGuiCol_Text, headerColour);
+            if (ImGui::Selectable(chLbl)) {
+                s_PickerMsgIdx = -1;
+                ImGui::OpenPopup("##chan");
+            }
+            ImGui::PopStyleColor();
+        }
 
         bool anyHovered = false;
         int sectionCol = 0; // column counter within current section
@@ -499,21 +512,40 @@ void RenderFloatingIcon() {
 
         // Open popup after all PushID scopes are closed
         if (pendingRightClick >= 0) {
-            s_RightClickIdx = pendingRightClick;
+            s_PickerMsgIdx = pendingRightClick; // send-and-set mode
             ImGui::OpenPopup("##chan");
         }
 
         ImGui::PushStyleVar(ImGuiStyleVar_ItemSpacing,  ImVec2(8, 6));
         ImGui::PushStyleVar(ImGuiStyleVar_FramePadding, ImVec2(8, 6));
         if (ImGui::BeginPopup("##chan")) {
-            if (s_RightClickIdx >= 0 && s_RightClickIdx < (int)visible.size()) {
-                const ChatMessage* m = visible[s_RightClickIdx];
-                bool isML = m->fullText.find('\n') != std::string::npos;
-                const ImVec2 itemSz(120, 28);
-                if (!isML && ImGui::Selectable("Say",   false, 0, itemSz)) { PostMessage(*m, "/say ");   ImGui::CloseCurrentPopup(); }
-                if (             ImGui::Selectable("Party", false, 0, itemSz)) { PostMessage(*m, "/party "); ImGui::CloseCurrentPopup(); }
-                if (             ImGui::Selectable("Squad", false, 0, itemSz)) { PostMessage(*m, "/squad "); ImGui::CloseCurrentPopup(); }
-                if (!isML && ImGui::Selectable("Map",   false, 0, itemSz)) { PostMessage(*m, "/map ");   ImGui::CloseCurrentPopup(); }
+            const ImVec2 itemSz(120, 28);
+            // Selecting a channel always updates the sticky channel; in send-and-set
+            // mode (s_PickerMsgIdx >= 0) it also posts that message to the channel.
+            auto selectChannel = [&](int chIdx) {
+                g_Settings.channel = chIdx;
+                SaveSettings();
+                if (s_PickerMsgIdx >= 0 && s_PickerMsgIdx < (int)visible.size())
+                    PostMessage(*visible[s_PickerMsgIdx], Channels::Command(chIdx));
+                ImGui::CloseCurrentPopup();
+            };
+            // 6 rows: left column = standard channels (Say..Team, 5 + 1 blank),
+            // right column = guild slots (Guild 1..Guild 6).
+            for (int row = 0; row < 6; ++row) {
+                if (row < Channels::kStandardCount) {
+                    ImGui::PushID(row * 2);
+                    if (ImGui::Selectable(Channels::Label(row), false, 0, itemSz))
+                        selectChannel(row);
+                    ImGui::PopID();
+                } else {
+                    ImGui::Dummy(itemSz);
+                }
+                ImGui::SameLine();
+                int gi = Channels::kStandardCount + row; // 5..10 -> Guild 1..Guild 6
+                ImGui::PushID(row * 2 + 1);
+                if (ImGui::Selectable(Channels::Label(gi), false, 0, itemSz))
+                    selectChannel(gi);
+                ImGui::PopID();
             }
             ImGui::EndPopup();
         }
