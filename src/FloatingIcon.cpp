@@ -378,7 +378,7 @@ void RenderFloatingIcon() {
     float curMapRows  = curMapVis.empty()  ? 0.0f : ceilf((float)curMapVis.size()  / cols);
     float sectionGap  = (!allMapsVis.empty() && !curMapVis.empty()) ? 4.0f : 0.0f;
     float panelW = cols * (btnW + 4.0f) + 12.0f;
-    float channelRowH = 24.0f; // always-present clickable channel header at top of panel
+    float channelRowH = 34.0f; // always-present channel header + gold divider at top of panel
     float panelH = (allMapsRows + curMapRows) * (btnH + 4.0f)
                  + (allMapsVis.empty() ? 0.0f : headerH + 4.0f)
                  + (curMapVis.empty()  ? 0.0f : headerH + 4.0f)
@@ -451,14 +451,19 @@ void RenderFloatingIcon() {
         ImVec4 headerColour(0.86f, 0.75f, 0.31f, alpha);
 
         // Clickable channel header — shows the sticky channel, opens picker in set-only mode.
+        // Plain ASCII only: the Nexus font has no glyphs for arrows/em-dashes etc.
         {
             char chLbl[64];
-            snprintf(chLbl, sizeof(chLbl), "\xe2\x96\xb8 %s", Channels::Label(g_Settings.channel)); // "▸ Name"
+            snprintf(chLbl, sizeof(chLbl), "Sending to %s", Channels::Label(g_Settings.channel));
             ImGui::PushStyleColor(ImGuiCol_Text, headerColour);
             if (ImGui::Selectable(chLbl)) {
                 s_PickerMsgIdx = -1;
                 ImGui::OpenPopup("##chan");
             }
+            ImGui::PopStyleColor();
+            // Gold divider between the channel line and the message list.
+            ImGui::PushStyleColor(ImGuiCol_Separator, headerColour);
+            ImGui::Separator();
             ImGui::PopStyleColor();
         }
 
