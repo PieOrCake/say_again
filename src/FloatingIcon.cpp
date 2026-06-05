@@ -11,6 +11,7 @@
 #include "imgui.h"
 #include "imgui_internal.h"
 #include "SharedState.h"
+#include "Channels.h"
 #include "Messages.h"
 #include "MapData.h"
 #include "GW2API.h"
@@ -377,9 +378,11 @@ void RenderFloatingIcon() {
     float curMapRows  = curMapVis.empty()  ? 0.0f : ceilf((float)curMapVis.size()  / cols);
     float sectionGap  = (!allMapsVis.empty() && !curMapVis.empty()) ? 4.0f : 0.0f;
     float panelW = cols * (btnW + 4.0f) + 12.0f;
+    float channelRowH = 24.0f; // always-present clickable channel header at top of panel
     float panelH = (allMapsRows + curMapRows) * (btnH + 4.0f)
                  + (allMapsVis.empty() ? 0.0f : headerH + 4.0f)
                  + (curMapVis.empty()  ? 0.0f : headerH + 4.0f)
+                 + channelRowH + 4.0f
                  + sectionGap + 12.0f;
 
     bool flipX     = (ix + sz + panelW > screenW);
@@ -464,7 +467,7 @@ void RenderFloatingIcon() {
             ImGui::PushID(i);
             std::string lbl = GW2API::ResolveDisplay(visible[i]->shortLabel);
             if (ImGui::Button(lbl.c_str(), ImVec2(btnW, btnH)))
-                PostMessage(*visible[i], "");
+                PostMessage(*visible[i], Channels::Command(g_Settings.channel));
             // Badge overlay for multi-line messages
             if (visible[i]->fullText.find('\n') != std::string::npos) {
                 int n = (int)std::count(visible[i]->fullText.begin(), visible[i]->fullText.end(), '\n') + 1;
