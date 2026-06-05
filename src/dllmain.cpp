@@ -717,7 +717,7 @@ static void AddonOptions() {
         if (ImGui::IsItemActive() && ImGui::IsKeyPressed(ImGuiKey_Tab, false))
             s_DecFocusLine = 0;
         RenderDecoratedEditor(textBuf, sizeof(textBuf), decReset);
-        ImGui::TextDisabled("Tip: newlines send each line as a separate message (party/squad only).");
+        ImGui::TextDisabled("Tip: newlines send each line as a separate message.");
 
         bool wasAllMaps = allMaps;
         ImGui::Checkbox("All Maps", &allMaps);
