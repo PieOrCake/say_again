@@ -525,13 +525,17 @@ void RenderFloatingIcon() {
         ImGui::PushStyleVar(ImGuiStyleVar_FramePadding, ImVec2(8, 6));
         if (ImGui::BeginPopup("##chan")) {
             const ImVec2 itemSz(120, 28);
-            // Selecting a channel always updates the sticky channel; in send-and-set
-            // mode (s_PickerMsgIdx >= 0) it also posts that message to the channel.
+            // Set-only mode (s_PickerMsgIdx < 0, opened from the header) changes the
+            // sticky channel. Override mode (s_PickerMsgIdx >= 0, opened by right-clicking
+            // a message) is a one-off: it posts that message to the picked channel without
+            // touching the sticky channel.
             auto selectChannel = [&](int chIdx) {
-                g_Settings.channel = chIdx;
-                SaveSettings();
-                if (s_PickerMsgIdx >= 0 && s_PickerMsgIdx < (int)visible.size())
+                if (s_PickerMsgIdx >= 0 && s_PickerMsgIdx < (int)visible.size()) {
                     PostMessage(*visible[s_PickerMsgIdx], Channels::Command(chIdx));
+                } else {
+                    g_Settings.channel = chIdx;
+                    SaveSettings();
+                }
                 ImGui::CloseCurrentPopup();
             };
             // 6 rows: left column = standard channels (Say..Team, 5 + 1 blank),
