@@ -290,6 +290,12 @@ static void RenderDecoratedEditor(char* buf, size_t bufSize, bool resetState) {
 
     float inputW = ImGui::GetContentRegionAvail().x - arrowW - xBtnW;
 
+    // A programmatic focus move (after an Enter-split or a delete) must be exclusive: blur every
+    // line first so only the target — re-focused below via Focus() — ends up focused. Without this
+    // the line we just left keeps focus too, since only a mouse-click-elsewhere clears it.
+    if (s_DecFocusLine >= 0)
+        for (auto& l : s_DecLines) l->Blur();
+
     for (int i = 0; i < (int)s_DecLines.size(); ++i) {
         ImGui::TextColored(kGreen, ">"); ImGui::SameLine();
 
@@ -797,6 +803,22 @@ static void AddonOptions() {
     if (dirty) SaveSettings();
 }
 
+// Nexus WndProc callback. While a chip editor line is focused (ChipInputActive), reinforce the
+// keyboard-capture flags so Nexus withholds the keystroke from the game — otherwise movement keys
+// and hotkeys leak through while typing. The custom chip widget's WantTextInput flickers false at
+// frame start, which a WndProc check can miss; this closes that gap. We observe only: never consume
+// (return the message unchanged), so Nexus still feeds the key to ImGui.
+static UINT SayAgainWndProc(HWND /*hWnd*/, UINT uMsg, WPARAM /*wParam*/, LPARAM /*lParam*/) {
+    if (ChipUI::ChipInputActive() &&
+        (uMsg == WM_KEYDOWN || uMsg == WM_KEYUP || uMsg == WM_SYSKEYDOWN ||
+         uMsg == WM_SYSKEYUP || uMsg == WM_CHAR || uMsg == WM_SYSCHAR)) {
+        ImGuiIO& io = ImGui::GetIO();
+        io.WantCaptureKeyboard = true;
+        io.WantTextInput       = true;
+    }
+    return uMsg;
+}
+
 // --- Lifecycle ---
 void AddonLoad(AddonAPI_t* aApi) {
     APIDefs = aApi;
@@ -812,6 +834,7 @@ void AddonLoad(AddonAPI_t* aApi) {
     APIDefs->GUI_Register(RT_Render, AddonRender);
     APIDefs->GUI_Register(RT_OptionsRender, AddonOptions);
     APIDefs->InputBinds_RegisterWithString("KB_SAY_AGAIN_TOGGLE", ProcessKeybind, "(null)");
+    if (APIDefs->WndProc_Register) APIDefs->WndProc_Register(SayAgainWndProc);
     APIDefs->Textures_LoadFromMemory(TEX_SA_ICON, (void*)SA_ICON, SA_ICON_len, nullptr);
 
     LoadSettings();
@@ -826,6 +849,7 @@ void AddonUnload() {
     FloatingIcon_Shutdown();
     DecoderClient::Shutdown();
     APIDefs->Events_Unsubscribe("EV_MUMBLE_IDENTITY_UPDATED", OnMumbleIdentityUpdated);
+    if (APIDefs->WndProc_Deregister) APIDefs->WndProc_Deregister(SayAgainWndProc);
     APIDefs->InputBinds_Deregister("KB_SAY_AGAIN_TOGGLE");
     APIDefs->GUI_Deregister(AddonOptions);
     APIDefs->GUI_Deregister(AddonRender);

@@ -2,6 +2,8 @@
 #include "ChipResolve.h"     // ChipResolve::Resolve
 #include "ChatLinks.h"       // ChatLinks::ParseSegments (parse [&..] back into chips)
 #include <algorithm>
+#include <atomic>
+#include <chrono>
 #include <cmath>
 #include <cstring>
 #include <functional>
@@ -95,6 +97,21 @@ static int   ChipTE_InsertChars(ChipTextEdit* o, int i, const int* chars, int n)
 #include "imstb_textedit.h"
 
 namespace ChipUI {
+
+// Focus timestamp (ms, steady clock) for the WndProc keyboard-capture reinforcement (see header).
+// A focused Render stamps NowMs(); ChipInputActive() is true while that stamp is recent. A timeout
+// (not a per-frame reset) keeps it continuously true while typing — no reset-gap for a held key to
+// leak — and self-clears shortly after focus is lost / the editor stops rendering.
+static std::atomic<long long> s_lastFocusMs{-100000};
+static long long NowMs() {
+    using namespace std::chrono;
+    return duration_cast<milliseconds>(steady_clock::now().time_since_epoch()).count();
+}
+static void StampChipFocus() { s_lastFocusMs.store(NowMs(), std::memory_order_relaxed); }
+bool ChipInputActive() {
+    constexpr long long kHold = 60;   // ms; > a slow frame, < a perceptible input lag
+    return (NowMs() - s_lastFocusMs.load(std::memory_order_relaxed)) < kHold;
+}
 
 static STB_TexteditState& St(ChipTextEdit* o) {
     if (!o->m_stb) { auto* s = new STB_TexteditState(); stb_textedit_initialize_state(s, 1); o->m_stb = s; }
@@ -245,6 +262,7 @@ bool ChipTextEdit::Render(const char* id, float width, ImU32 borderCol, ImU32 te
         ImGui::CaptureKeyboardFromApp(true);
         io.WantCaptureKeyboard = true;
         io.WantTextInput       = true;
+        StampChipFocus();   // the addon's WndProc reinforces capture while this stays recent
     }
 
     Measure(cells);

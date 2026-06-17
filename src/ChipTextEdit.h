@@ -11,6 +11,11 @@
 // owns focus. Say Again's multi-line editor owns one instance per line (stored via unique_ptr).
 namespace ChipUI {
 
+// True when a chip box was focused within the last ~60ms (any instance). The addon's Nexus WndProc
+// reads this to reinforce keyboard-capture flags so keystrokes don't leak to the game while typing:
+// the widget's per-frame WantTextInput flickers false at frame start, which a WndProc check can miss.
+bool ChipInputActive();
+
 struct ChipCell {
     bool         isChip = false;
     unsigned int cp = 0;      // Unicode codepoint (text cell)
@@ -46,6 +51,7 @@ struct ChipTextEdit {
     bool        Empty() const { return cells.empty(); }
     void        Clear();
     void        Focus()           { focusNext = true; }
+    void        Blur()            { focused = false; focusNext = false; }
     bool        IsFocused() const { return focused; }
 
     // --- multi-line split support (Say Again editor) ---
