@@ -14,7 +14,7 @@
 #include "Channels.h"
 #include "Messages.h"
 #include "MapData.h"
-#include "GW2API.h"
+#include "LinkResolve.h"
 
 #define TEX_SA_ICON "TEX_SA_ICON"
 
@@ -483,7 +483,7 @@ void RenderFloatingIcon() {
 
             if (sectionCol % cols != 0) ImGui::SameLine();
             ImGui::PushID(i);
-            std::string lbl = GW2API::ResolveDisplay(visible[i]->shortLabel);
+            std::string lbl = LinkResolve::Display(visible[i]->shortLabel);
             if (ImGui::Button(lbl.c_str(), ImVec2(btnW, btnH)))
                 PostMessage(*visible[i], Channels::Command(g_Settings.channel));
             // Badge overlay for multi-line messages
@@ -506,7 +506,7 @@ void RenderFloatingIcon() {
                 anyHovered = true;
                 if (s_HoverIdx != i) { s_HoverIdx = i; s_HoverStart = ImGui::GetTime(); }
                 if (ImGui::GetTime() - s_HoverStart >= 1.0) {
-                    std::string tip = GW2API::ResolveDisplay(visible[i]->fullText);
+                    std::string tip = LinkResolve::Display(visible[i]->fullText);
                     ImGui::SetTooltip("%s", tip.c_str());
                 }
             }

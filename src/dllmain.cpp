@@ -11,7 +11,8 @@
 #include "Messages.h"
 #include "FloatingIcon.h"
 #include "MapData.h"
-#include "GW2API.h"
+#include "LinkResolve.h"
+#include "DecoderClient.h"
 
 // --- Addon metadata ---
 #define V_MAJOR    0
@@ -294,7 +295,7 @@ static void RenderDecoratedEditor(char* buf, size_t bufSize, bool resetState) {
     // Count how many lines will produce a preview row beneath them.
     int   previewRows = 0;
     for (int i = 0; i < vis; ++i) {
-        std::string preview = GW2API::ResolveDisplay(s_DecLines[i]);
+        std::string preview = LinkResolve::Display(s_DecLines[i]);
         if (preview != s_DecLines[i]) ++previewRows;
     }
     float childH = (float)vis * lineH + (float)previewRows * textH + padY;
@@ -346,7 +347,7 @@ static void RenderDecoratedEditor(char* buf, size_t bufSize, bool resetState) {
         }
 
         // Preview line: show resolved chat codes if the line contains any.
-        std::string preview = GW2API::ResolveDisplay(s_DecLines[i]);
+        std::string preview = LinkResolve::Display(s_DecLines[i]);
         if (preview != s_DecLines[i]) {
             ImGui::Dummy(ImVec2(arrowW, 0)); ImGui::SameLine();
             ImGui::PushStyleColor(ImGuiCol_Text, ImVec4(0.6f, 0.6f, 0.6f, 1.0f));
@@ -532,7 +533,7 @@ static void AddonOptions() {
 
         ImGui::Text("%s", msg.shortLabel.c_str());
         ImGui::SameLine();
-        std::string preview = GW2API::ResolveDisplay(msg.fullText);
+        std::string preview = LinkResolve::Display(msg.fullText);
         ImGui::TextDisabled("%.40s%s", preview.c_str(),
             preview.size() > 40 ? "..." : "");
         ImGui::SameLine();
@@ -849,14 +850,14 @@ void AddonLoad(AddonAPI_t* aApi) {
     LoadSettings();
     LoadMessages();
     ScanIconDir();
-    GW2API::Initialize();
+    DecoderClient::Init();
 
     APIDefs->Log(LOGL_INFO, "SayAgain", "Addon loaded");
 }
 
 void AddonUnload() {
     FloatingIcon_Shutdown();
-    GW2API::Shutdown();
+    DecoderClient::Shutdown();
     APIDefs->Events_Unsubscribe("EV_MUMBLE_IDENTITY_UPDATED", OnMumbleIdentityUpdated);
     APIDefs->InputBinds_Deregister("KB_SAY_AGAIN_TOGGLE");
     APIDefs->GUI_Deregister(AddonOptions);
