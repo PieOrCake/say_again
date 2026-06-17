@@ -40,6 +40,7 @@ set(SOURCES
     src/ChatLinks.cpp
     src/DecoderClient.cpp
     src/LinkResolve.cpp
+    src/ChipResolve.cpp
     ${IMGUI_SOURCES}
 )
 
