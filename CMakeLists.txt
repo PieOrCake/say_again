@@ -41,6 +41,7 @@ set(SOURCES
     src/DecoderClient.cpp
     src/LinkResolve.cpp
     src/ChipResolve.cpp
+    src/ChipTextEdit.cpp
     ${IMGUI_SOURCES}
 )
 
