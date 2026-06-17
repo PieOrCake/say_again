@@ -55,7 +55,7 @@ static int   ChipTE_InsertChars(ChipTextEdit* o, int i, const int* chars, int n)
         budget -= b;
         ChipCell c; c.isChip = false; c.cp = (unsigned)chars[k]; ins.push_back(std::move(c));
     }
-    if (ins.empty()) return 0;
+    if (ins.size() < (size_t)n) return 0;   // reject partial inserts (avoids stb cursor desync)
     o->cells.insert(o->cells.begin() + i, ins.begin(), ins.end());
     return 1;
 }
