@@ -85,7 +85,8 @@ static Link DecodeGW2Link(const std::string& raw) {
     auto bytes = Base64Decode(b64);
     if (bytes.empty()) return lk;
 
-    lk.type = TypeFromByte(bytes[0]);
+    lk.type      = TypeFromByte(bytes[0]);
+    lk.wire_byte = bytes[0];
 
     // Item: [0]=quantity [1..3]=ItemId(uint24) ...
     // Others: [0..3]=id(uint32) after the type byte

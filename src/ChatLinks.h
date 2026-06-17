@@ -21,6 +21,7 @@ struct Link {
     LinkType    type        = LinkType::Unknown;
     std::string raw;        // original text, e.g. "[&BNcHAAA=]"
     uint32_t    primary_id  = 0;
+    uint8_t     wire_byte   = 0;  // canonical GW2 chat-link type byte (0 if undecodable)
 };
 
 struct Segment {
