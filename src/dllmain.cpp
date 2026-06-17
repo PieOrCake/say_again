@@ -480,6 +480,14 @@ static void AddonOptions() {
     ImGui::Spacing();
     RenderSectionHeader("Messages", kGold);
 
+    if (!LinkResolve::Available()) {
+        ImGui::TextColored(ImVec4(1.0f, 0.6f, 0.1f, 1.0f),
+            "Decoder Ring not installed - chat-link names show as placeholders.");
+        ImGui::TextColored(ImVec4(0.7f, 0.7f, 0.7f, 1.0f),
+            "Install Decoder Ring from the Nexus addon library to decode link names.");
+        ImGui::Spacing();
+    }
+
     static int  s_EditIdx    = -1;
     static bool s_OpenEditor = false;
     static ChatMessage s_EditBuf;
