@@ -52,6 +52,12 @@ then disappears (resolved names live inline as chips).
    that calls Say Again's existing `ChatLinks::ParseSegments` +
    `GW2API::LookupOrRequest`. Keeps dependency surface tiny.
 
+   **2026-06-17 — SUPERSEDED:** `GW2API` no longer exists (deleted as part of
+   the Decoder Ring migration). The chip resolver adapter will call
+   `DecoderClient::Resolve()` instead, which queries the Decoder Ring sibling
+   addon via the `DECODER_RING_API` DataLink. Rarity colour comes from
+   `DecoderRecord::rarity`.
+
 2. **Probably drop the keyboard-capture plumbing.** The `ChipInputActive()` /
    WndProc reinforcement in Pie UI exists because its chatbox is an in-game
    overlay fighting the game for keypresses. Say Again's editor lives in the
