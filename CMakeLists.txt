@@ -38,7 +38,8 @@ set(SOURCES
     src/Messages.cpp
     src/FloatingIcon.cpp
     src/ChatLinks.cpp
-    src/GW2API.cpp
+    src/DecoderClient.cpp
+    src/LinkResolve.cpp
     ${IMGUI_SOURCES}
 )
 
