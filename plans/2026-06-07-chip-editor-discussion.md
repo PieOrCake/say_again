@@ -1,6 +1,6 @@
 # Chip Text Editor — Discussion Notes (2026-06-07)
 
-**Status:** Discussion only. No decision made, no code written. Resume next session.
+**Status:** IMPLEMENTED (2026-06-17). `ChipTextEdit` ported from Pie UI into Say Again, resolving via `ChipResolve`/`DecoderClient`. Multi-line preserved (one `ChipTextEdit` per line, held by `unique_ptr`). Inline rarity-coloured chips replace the old faded preview row. Editor-only — floating panel still uses `LinkResolve::Display` plain text. Decisions settled: keyboard-capture plumbing dropped (Nexus Options window owns focus); rarity colour for items, default tint for other types.
 
 ## Goal
 

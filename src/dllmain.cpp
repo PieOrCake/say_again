@@ -13,6 +13,8 @@
 #include "MapData.h"
 #include "LinkResolve.h"
 #include "DecoderClient.h"
+#include "ChipTextEdit.h"
+#include <memory>
 
 // --- Addon metadata ---
 #define V_MAJOR    0
@@ -242,38 +244,28 @@ static void OnMumbleIdentityUpdated(void* eventArgs) {
 
 // --- Decorated message editor ---
 
-struct LineCallbackData {
-    int  idx;
-    bool wantsEnter;
-    int  enterCursorPos;
-};
-
-static int LineInputCallback(ImGuiInputTextCallbackData* data) {
-    auto* ld = (LineCallbackData*)data->UserData;
-    if (data->EventFlag == ImGuiInputTextFlags_CallbackAlways) {
-        if (ImGui::IsKeyPressed(ImGuiKey_Enter, false) ||
-            ImGui::IsKeyPressed(ImGuiKey_KeyPadEnter, false)) {
-            ld->wantsEnter     = true;
-            ld->enterCursorPos = data->CursorPos;
-        }
-    }
-    return 0;
-}
-
-static std::vector<std::string> s_DecLines;
+// One chip box per line. ChipTextEdit owns a raw stb_textedit pointer (non-copyable), so the
+// lines are held by unique_ptr. The combined message text is each line's GetText() joined by '\n'.
+static std::vector<std::unique_ptr<ChipUI::ChipTextEdit>> s_DecLines;
 static int s_DecFocusLine = -1;
 
 static void RenderDecoratedEditor(char* buf, size_t bufSize, bool resetState) {
     if (resetState || s_DecLines.empty()) {
         s_DecLines.clear();
         std::string full(buf);
+        std::vector<std::string> parts;
         size_t start = 0, pos;
         while ((pos = full.find('\n', start)) != std::string::npos) {
-            s_DecLines.push_back(full.substr(start, pos - start));
+            parts.push_back(full.substr(start, pos - start));
             start = pos + 1;
         }
-        s_DecLines.push_back(full.substr(start));
-        if (s_DecLines.empty()) s_DecLines.push_back("");
+        parts.push_back(full.substr(start));
+        if (parts.empty()) parts.push_back("");
+        for (const auto& p : parts) {
+            auto line = std::make_unique<ChipUI::ChipTextEdit>();
+            line->SetText(p);
+            s_DecLines.push_back(std::move(line));
+        }
         s_DecFocusLine = -1;
     }
 
@@ -282,53 +274,37 @@ static void RenderDecoratedEditor(char* buf, size_t bufSize, bool resetState) {
     static const ImVec4 kRedHover (0.75f, 0.15f, 0.15f, 1.0f);
     static const ImVec4 kRedActive(0.90f, 0.20f, 0.20f, 1.0f);
 
-    int pendingEnterIdx    = -1;
-    int pendingEnterCursor = 0;
-    int pendingDeleteIdx   = -1;
-
+    int  pendingEnterIdx  = -1;
+    int  pendingDeleteIdx = -1;
     bool showX = s_DecLines.size() > 1;
 
-    float lineH  = ImGui::GetFrameHeightWithSpacing();
-    float textH  = ImGui::GetTextLineHeightWithSpacing();
-    float padY   = ImGui::GetStyle().WindowPadding.y * 2.0f;
-    int   vis    = std::min((int)s_DecLines.size(), 6);
-    // Count how many lines will produce a preview row beneath them.
-    int   previewRows = 0;
-    for (int i = 0; i < vis; ++i) {
-        std::string preview = LinkResolve::Display(s_DecLines[i]);
-        if (preview != s_DecLines[i]) ++previewRows;
-    }
-    float childH = (float)vis * lineH + (float)previewRows * textH + padY;
+    float lineH = ImGui::GetFrameHeightWithSpacing();
+    float padY  = ImGui::GetStyle().WindowPadding.y * 2.0f;
+    int   vis   = std::min((int)s_DecLines.size(), 6);
+    float childH = (float)vis * lineH + padY;
 
-    // Pre-calculate widths so the input doesn't fight with the X button
-    float arrowW  = ImGui::CalcTextSize(">").x + ImGui::GetStyle().ItemSpacing.x;
-    float xBtnW   = showX ? (ImGui::GetFrameHeight() + ImGui::GetStyle().ItemSpacing.x) : 0.0f;
+    float arrowW = ImGui::CalcTextSize(">").x + ImGui::GetStyle().ItemSpacing.x;
+    float xBtnW  = showX ? (ImGui::GetFrameHeight() + ImGui::GetStyle().ItemSpacing.x) : 0.0f;
 
     ImGui::BeginChild("##deceditor", ImVec2(400, childH), true);
 
     float inputW = ImGui::GetContentRegionAvail().x - arrowW - xBtnW;
 
+    // A programmatic focus move (after an Enter-split or a delete) must be exclusive: blur every
+    // line first so only the target — re-focused below via Focus() — ends up focused. Without this
+    // the line we just left keeps focus too, since only a mouse-click-elsewhere clears it.
+    if (s_DecFocusLine >= 0)
+        for (auto& l : s_DecLines) l->Blur();
+
     for (int i = 0; i < (int)s_DecLines.size(); ++i) {
         ImGui::TextColored(kGreen, ">"); ImGui::SameLine();
-        ImGui::SetNextItemWidth(inputW);
 
         char id[32];
-        snprintf(id, sizeof(id), "##saline%d", i);
+        snprintf(id, sizeof(id), "##chipline%d", i);
 
-        char lineBuf[1024] = {};
-        strncpy(lineBuf, s_DecLines[i].c_str(), sizeof(lineBuf) - 1);
+        if (s_DecFocusLine == i) { s_DecLines[i]->Focus(); s_DecFocusLine = -1; }
 
-        LineCallbackData lcd{i, false, 0};
-
-        if (s_DecFocusLine == i) {
-            ImGui::SetKeyboardFocusHere();
-            s_DecFocusLine = -1;
-        }
-
-        ImGui::InputText(id, lineBuf, sizeof(lineBuf),
-            ImGuiInputTextFlags_CallbackAlways, LineInputCallback, &lcd);
-
-        s_DecLines[i] = lineBuf;
+        bool entered = s_DecLines[i]->Render(id, inputW, 0, 0);
 
         if (showX) {
             ImGui::SameLine();
@@ -341,43 +317,32 @@ static void RenderDecoratedEditor(char* buf, size_t bufSize, bool resetState) {
             ImGui::PopStyleColor(3);
         }
 
-        if (lcd.wantsEnter && pendingEnterIdx == -1) {
-            pendingEnterIdx    = i;
-            pendingEnterCursor = lcd.enterCursorPos;
-        }
-
-        // Preview line: show resolved chat codes if the line contains any.
-        std::string preview = LinkResolve::Display(s_DecLines[i]);
-        if (preview != s_DecLines[i]) {
-            ImGui::Dummy(ImVec2(arrowW, 0)); ImGui::SameLine();
-            ImGui::PushStyleColor(ImGuiCol_Text, ImVec4(0.6f, 0.6f, 0.6f, 1.0f));
-            ImGui::TextWrapped("%s", preview.c_str());
-            ImGui::PopStyleColor();
-        }
+        if (entered && pendingEnterIdx == -1) pendingEnterIdx = i;
     }
 
     ImGui::EndChild();
 
-    // Split line at cursor on Enter
+    // Split line at the caret on Enter.
     if (pendingEnterIdx != -1) {
         int i = pendingEnterIdx;
-        std::string tail = s_DecLines[i].substr(pendingEnterCursor);
-        s_DecLines[i]    = s_DecLines[i].substr(0, pendingEnterCursor);
-        s_DecLines.insert(s_DecLines.begin() + i + 1, tail);
+        auto tail = s_DecLines[i]->SplitOffTail();
+        auto nl = std::make_unique<ChipUI::ChipTextEdit>();
+        nl->SetCells(std::move(tail), 0);
+        s_DecLines.insert(s_DecLines.begin() + i + 1, std::move(nl));
         s_DecFocusLine = i + 1;
     }
-    // Delete line via X button (keep at least one line)
+    // Delete line via X button (keep at least one line).
     else if (pendingDeleteIdx != -1 && (int)s_DecLines.size() > 1) {
         int i = pendingDeleteIdx;
         s_DecLines.erase(s_DecLines.begin() + i);
         s_DecFocusLine = std::max(0, i - 1);
     }
 
-    // Reconstruct buf
+    // Reconstruct buf from each line's send text (codes round-trip verbatim).
     std::string result;
     for (int i = 0; i < (int)s_DecLines.size(); ++i) {
         if (i > 0) result += '\n';
-        result += s_DecLines[i];
+        result += s_DecLines[i]->GetText();
     }
     strncpy(buf, result.c_str(), bufSize - 1);
     buf[bufSize - 1] = '\0';
@@ -838,6 +803,22 @@ static void AddonOptions() {
     if (dirty) SaveSettings();
 }
 
+// Nexus WndProc callback. While a chip editor line is focused (ChipInputActive), reinforce the
+// keyboard-capture flags so Nexus withholds the keystroke from the game — otherwise movement keys
+// and hotkeys leak through while typing. The custom chip widget's WantTextInput flickers false at
+// frame start, which a WndProc check can miss; this closes that gap. We observe only: never consume
+// (return the message unchanged), so Nexus still feeds the key to ImGui.
+static UINT SayAgainWndProc(HWND /*hWnd*/, UINT uMsg, WPARAM /*wParam*/, LPARAM /*lParam*/) {
+    if (ChipUI::ChipInputActive() &&
+        (uMsg == WM_KEYDOWN || uMsg == WM_KEYUP || uMsg == WM_SYSKEYDOWN ||
+         uMsg == WM_SYSKEYUP || uMsg == WM_CHAR || uMsg == WM_SYSCHAR)) {
+        ImGuiIO& io = ImGui::GetIO();
+        io.WantCaptureKeyboard = true;
+        io.WantTextInput       = true;
+    }
+    return uMsg;
+}
+
 // --- Lifecycle ---
 void AddonLoad(AddonAPI_t* aApi) {
     APIDefs = aApi;
@@ -853,6 +834,7 @@ void AddonLoad(AddonAPI_t* aApi) {
     APIDefs->GUI_Register(RT_Render, AddonRender);
     APIDefs->GUI_Register(RT_OptionsRender, AddonOptions);
     APIDefs->InputBinds_RegisterWithString("KB_SAY_AGAIN_TOGGLE", ProcessKeybind, "(null)");
+    if (APIDefs->WndProc_Register) APIDefs->WndProc_Register(SayAgainWndProc);
     APIDefs->Textures_LoadFromMemory(TEX_SA_ICON, (void*)SA_ICON, SA_ICON_len, nullptr);
 
     LoadSettings();
@@ -867,6 +849,7 @@ void AddonUnload() {
     FloatingIcon_Shutdown();
     DecoderClient::Shutdown();
     APIDefs->Events_Unsubscribe("EV_MUMBLE_IDENTITY_UPDATED", OnMumbleIdentityUpdated);
+    if (APIDefs->WndProc_Deregister) APIDefs->WndProc_Deregister(SayAgainWndProc);
     APIDefs->InputBinds_Deregister("KB_SAY_AGAIN_TOGGLE");
     APIDefs->GUI_Deregister(AddonOptions);
     APIDefs->GUI_Deregister(AddonRender);

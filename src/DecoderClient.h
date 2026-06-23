@@ -14,7 +14,7 @@ namespace DecoderClient {
 void Init();      // subscribe + acquire + ping. Call from AddonLoad after APIDefs is set.
 void Shutdown();  // unsubscribe + drop the cached pointer. Call from AddonUnload.
 
-// DR present AND its apiVersion matches what we built against.
+// DR present AND its apiVersion is at least what we built against.
 bool Available();
 
 // Warm resolve. True only when DR returned DR_Resolved with a version-matched
