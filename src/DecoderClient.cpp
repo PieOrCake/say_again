@@ -11,11 +11,17 @@ namespace {
 std::atomic<const DecoderRingApi*> s_api{nullptr};
 bool s_subscribed = false;
 
+// Forward-compatible: the record layout is stable across ABI bumps (new data rides
+// existing fields), so a service at-or-above the version we built against is usable.
+// A version below ours — including the post-unload 0 — is treated as absent.
 bool ApiVersionOk(const DecoderRingApi* api) {
-    return api && api->Resolve && api->apiVersion == DECODER_RING_API_VERSION;
+    return api && api->Resolve && api->apiVersion >= DECODER_RING_API_VERSION;
 }
+// The fields this consumer reads (name, rarity) have existed since schema v3, so gate
+// readability on that introducing version — NOT the built-against version, which would
+// needlessly reject a future newer service.
 bool RecordUsable(const DecoderRecord& rec) {
-    return rec.status == DR_Resolved && rec.schemaVersion == DECODER_RING_API_VERSION;
+    return rec.status == DR_Resolved && rec.schemaVersion >= 3u;
 }
 
 // (Re)acquire DR's table from the DataLink and version-gate it. Nexus keeps the
@@ -33,7 +39,7 @@ void Acquire() {
     if (ok && !prev && APIDefs && APIDefs->Log)
         APIDefs->Log(LOGL_INFO, "SayAgain", "Decoder Ring acquired (version OK)");
     else if (!ok && api && api->Resolve &&
-             api->apiVersion != DECODER_RING_API_VERSION && APIDefs && APIDefs->Log)
+             api->apiVersion < DECODER_RING_API_VERSION && APIDefs && APIDefs->Log)
         APIDefs->Log(LOGL_WARNING, "SayAgain",
                      "Decoder Ring present but API version mismatch - treating as absent");
 }

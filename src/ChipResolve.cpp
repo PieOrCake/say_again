@@ -39,8 +39,12 @@ void Resolve(const std::string& code, std::string& outName, ImU32& outColor) {
         outName = "[";
         outName += rec.name;
         outName += "]";
-        outColor = (lk.type == ChatLinks::LinkType::Item) ? RarityColor(rec.rarity)
-                                                          : kDefaultChipColor;
+        // Items carry rarity directly; recipe (0x09) outputs may too. For recipes DR
+        // embeds the rarity in the name suffix and may leave the field unset — RarityColor
+        // falls back to the default tint in that case, so this is a safe extension.
+        bool coloredByRarity = (lk.type == ChatLinks::LinkType::Item ||
+                                lk.type == ChatLinks::LinkType::Recipe);
+        outColor = coloredByRarity ? RarityColor(rec.rarity) : kDefaultChipColor;
     } else {
         outName  = ChatLinks::GenericLabel(lk.type);   // "[Waypoint]" / "[Item]" / …
         outColor = kDefaultChipColor;
