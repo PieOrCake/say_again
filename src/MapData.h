@@ -173,7 +173,9 @@ inline const std::vector<MapGroup>& GetMapGroups() {
             { 1368u, "Forging Steel" },
             { 1374u, "Cold War" },
             { 1409u, "Dragonstorm (Private Squad)" },
+            { 1411u, "Dragonstorm (Public)" },
             { 1412u, "Dragonstorm" },
+            { 1413u, "The Twisted Marionette (Public)" },
             { 1414u, "The Twisted Marionette (Private Squad)" },
             { 1480u, "The Twisted Marionette" },
             // End of Dragons
