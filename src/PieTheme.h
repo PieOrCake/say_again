@@ -10,22 +10,19 @@
 // handler may run off the render thread, so the cached palette is mutex-guarded
 // and colours are applied on the render thread by the caller.
 
-#define PIEUI_THEME_VERSION 2u
+#define PIEUI_THEME_VERSION    1u
+#define PIEUI_THEME_MAX_COLORS 96
 
-// Fixed ABI mirrored from Pie UI. Colours are IM_COL32 values packed 0xAABBGGRR.
-// v2 adds the button trio: resting buttons are a dark, dimmed fill (NOT the
-// bright accent), leaning toward the accent only on hover/active.
+// Fixed ABI mirrored from Pie UI. Pie ships its ENTIRE ImGui colour array in one
+// go: colors[] is indexed by the ImGuiCol_ enum and copies straight into
+// ImGuiStyle.Colors[] with no per-control mapping. `accent` is separate (Pie's
+// signature trim-aware highlight) and is NOT an ImGuiCol slot — use it only for
+// hand-drawn highlights. Colours are IM_COL32 values packed 0xAABBGGRR.
 struct PieUiTheme {
-    uint32_t version;
-    uint32_t accent;
-    uint32_t window_bg;
-    uint32_t header_bg;
-    uint32_t text;
-    uint32_t text_muted;
-    uint32_t border;
-    uint32_t button;          // resting button fill (v2)
-    uint32_t button_hovered;  // hovered button fill (v2)
-    uint32_t button_active;   // pressed/active button fill (v2)
+    uint32_t version;                        // == PIEUI_THEME_VERSION; ignore if unknown
+    uint32_t accent;                         // signature highlight (trim-aware); NOT an ImGuiCol
+    uint32_t count;                          // valid entries in colors[] (Pie's ImGuiCol_COUNT)
+    uint32_t colors[PIEUI_THEME_MAX_COLORS]; // IM_COL32 (0xAABBGGRR), indexed by ImGuiCol_
 };
 
 namespace PieTheme {
@@ -36,6 +33,7 @@ void Shutdown();  // unsubscribe from EV_PIEUI_THEME. Call from AddonUnload.
 bool       HasPalette();  // true once a version-matched palette has been received
 bool       Active();      // g_Settings.usePieTheme && HasPalette()
 PieUiTheme Palette();     // copy of the last-received palette (guarded)
+uint32_t   Accent();      // raw accent IM_COL32 (guarded); 0 if no palette
 
 ImVec4 Unpack(uint32_t packed);                 // 0xAABBGGRR -> normalised ImVec4
 ImVec4 AccentRGB(const ImVec4& fallback);       // accent RGB + fallback alpha when Active(), else fallback

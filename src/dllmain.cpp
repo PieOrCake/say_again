@@ -57,39 +57,17 @@ static void PushGW2Theme() {
     g_StyleStack.push_back(ImGui::GetStyle());
     ImGuiStyle themed = g_GW2Style;
     if (PieTheme::Active()) {
+        // Pie ships its entire ImGui colour array; copy it straight into the
+        // style (indexed by ImGuiCol_). Clamp to the smaller of both counts so a
+        // count skew leaves trailing controls at our defaults, never OOB. Style
+        // geometry (rounding/padding/borders) from g_GW2Style is kept as-is.
+        // `accent` is separate and applied only to hand-drawn highlights.
         const PieUiTheme p = PieTheme::Palette();
-        const ImVec4 windowBg = PieTheme::Unpack(p.window_bg);
-        const ImVec4 headerBg = PieTheme::Unpack(p.header_bg);
-        const ImVec4 text     = PieTheme::Unpack(p.text);
-        const ImVec4 muted    = PieTheme::Unpack(p.text_muted);
-        const ImVec4 border   = PieTheme::Unpack(p.border);
-        const ImVec4 accent   = PieTheme::Unpack(p.accent);
-        const ImVec4 button   = PieTheme::Unpack(p.button);
-        const ImVec4 buttonHov= PieTheme::Unpack(p.button_hovered);
-        const ImVec4 buttonAct= PieTheme::Unpack(p.button_active);
-
-        themed.Colors[ImGuiCol_WindowBg]      = windowBg;
-        themed.Colors[ImGuiCol_ChildBg]       = windowBg;
-        themed.Colors[ImGuiCol_PopupBg]       = windowBg;
-
-        themed.Colors[ImGuiCol_TitleBg]       = headerBg;
-        themed.Colors[ImGuiCol_TitleBgActive] = headerBg;
-        themed.Colors[ImGuiCol_Header]        = headerBg;
-
-        themed.Colors[ImGuiCol_Text]          = text;
-        themed.Colors[ImGuiCol_TextDisabled]  = muted;
-        themed.Colors[ImGuiCol_Border]        = border;
-
-        // Buttons use Pie's dedicated (dark) button trio, NOT the bright accent.
-        themed.Colors[ImGuiCol_Button]        = button;
-        themed.Colors[ImGuiCol_ButtonHovered] = buttonHov;
-        themed.Colors[ImGuiCol_ButtonActive]  = buttonAct;
-
-        // Accent is reserved for genuine highlights.
-        themed.Colors[ImGuiCol_CheckMark]     = accent;
-        themed.Colors[ImGuiCol_SliderGrab]    = accent;
-        themed.Colors[ImGuiCol_SliderGrabActive] = accent;
-        themed.Colors[ImGuiCol_HeaderHovered] = accent;
+        int n = (int)p.count;
+        if (n > ImGuiCol_COUNT)          n = ImGuiCol_COUNT;
+        if (n > PIEUI_THEME_MAX_COLORS)  n = PIEUI_THEME_MAX_COLORS;
+        for (int i = 0; i < n; ++i)
+            themed.Colors[i] = ImGui::ColorConvertU32ToFloat4(p.colors[i]);
     }
     ImGui::GetStyle() = themed;
 }

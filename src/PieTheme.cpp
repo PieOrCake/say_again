@@ -53,6 +53,11 @@ bool Active() {
     return g_Settings.usePieTheme && HasPalette();
 }
 
+uint32_t Accent() {
+    std::lock_guard<std::mutex> lock(s_mutex);
+    return s_hasPalette ? s_palette.accent : 0u;
+}
+
 ImVec4 Unpack(uint32_t c) {
     return ImVec4(
         ( c        & 0xFF) / 255.0f,
@@ -63,13 +68,13 @@ ImVec4 Unpack(uint32_t c) {
 
 ImVec4 AccentRGB(const ImVec4& fallback) {
     if (!Active()) return fallback;
-    ImVec4 a = Unpack(Palette().accent);
+    ImVec4 a = Unpack(Accent());
     return ImVec4(a.x, a.y, a.z, fallback.w);
 }
 
 ImU32 AccentU32(ImU32 fallback) {
     if (!Active()) return fallback;
-    ImVec4 a = Unpack(Palette().accent);
+    ImVec4 a = Unpack(Accent());
     ImU32  alpha = (fallback >> IM_COL32_A_SHIFT) & 0xFF;
     return IM_COL32((int)(a.x * 255.0f + 0.5f), (int)(a.y * 255.0f + 0.5f), (int)(a.z * 255.0f + 0.5f), (int)alpha);
 }
