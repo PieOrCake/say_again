@@ -243,6 +243,19 @@ static void WarpDrawListScale(ImDrawList* dl, ImVec2 anchor, float s) {
     }
 }
 
+// Multiply every vertex's alpha in a window draw list by `a`, fading the whole
+// panel (background, buttons, text, border, badges) uniformly. RGB and vertex
+// positions are untouched. No-op at a >= 1.
+static void WarpDrawListAlpha(ImDrawList* dl, float a) {
+    if (!dl || a >= 1.0f) return;
+    if (a < 0.0f) a = 0.0f;
+    for (int i = 0; i < dl->VtxBuffer.Size; ++i) {
+        ImU32& col = dl->VtxBuffer[i].col;
+        ImU32 av = (ImU32)(((col >> IM_COL32_A_SHIFT) & 0xFF) * a + 0.5f);
+        col = (col & ~IM_COL32_A_MASK) | (av << IM_COL32_A_SHIFT);
+    }
+}
+
 // Set to true one frame after a position reset to force ImGui to reposition the window
 static bool s_ForceReposition = true;
 
@@ -425,11 +438,18 @@ void RenderFloatingIcon() {
 
     // --- Apply animation transform ---
     float alpha = g_AnimProgress;
+    // Fade (0) and Slide (1) fade the whole panel via a post-render vertex-alpha
+    // pass, so they leave bg/border/header at resting alpha to avoid double-fade.
+    // Pop (2) keeps baking `alpha` into bg/border (contents stay opaque while it
+    // scales). `bgHdrA` is the alpha multiplier for the bg/border/header sources.
+    bool  vtxFade = (g_Settings.animStyle == 0 || g_Settings.animStyle == 1);
+    float bgHdrA  = vtxFade ? 1.0f : alpha;
     ImVec2 panelPos(px, py);
     ImVec2 panelSize(panelW, panelH);
 
     if (g_Settings.animStyle == 1) {
-        float slideOff = (1.0f - g_AnimProgress) * 20.0f;
+        const float kSlideDistance = 60.0f; // travel from the icon; tunable
+        float slideOff = (1.0f - g_AnimProgress) * kSlideDistance;
         if (vertical)
             panelPos.y += edgeTop ? -slideOff : slideOff;
         else
@@ -438,12 +458,12 @@ void RenderFloatingIcon() {
 
     ImGui::SetNextWindowPos(panelPos, ImGuiCond_Always);
     ImGui::SetNextWindowSize(panelSize, ImGuiCond_Always);
-    ImGui::SetNextWindowBgAlpha(alpha * 0.95f);
+    ImGui::SetNextWindowBgAlpha(bgHdrA * 0.95f);
 
     bool pinned = !g_Settings.closeOnSend;
     ImGui::PushStyleVar(ImGuiStyleVar_WindowBorderSize, pinned ? 1.5f : 0.0f);
     ImGui::PushStyleColor(ImGuiCol_Border,
-        pinned ? PieTheme::AccentRGB(ImVec4(0.86f, 0.75f, 0.31f, alpha * 0.9f))
+        pinned ? PieTheme::AccentRGB(ImVec4(0.86f, 0.75f, 0.31f, bgHdrA * 0.9f))
                : ImVec4(0, 0, 0, 0));
 
     ImGuiWindowFlags panelFlags =
@@ -472,7 +492,7 @@ void RenderFloatingIcon() {
         static double s_HoverStart    = 0.0;
         int pendingRightClick = -1;
 
-        ImVec4 headerColour = PieTheme::AccentRGB(ImVec4(0.86f, 0.75f, 0.31f, alpha));
+        ImVec4 headerColour = PieTheme::AccentRGB(ImVec4(0.86f, 0.75f, 0.31f, bgHdrA));
 
         // Clickable channel header — shows the sticky channel, opens picker in set-only mode.
         // Plain ASCII only: the Nexus font has no glyphs for arrows/em-dashes etc.
@@ -592,10 +612,14 @@ void RenderFloatingIcon() {
     ImGui::PopStyleVar();
 
     // Deform the whole panel about the icon for the scale-from-icon style.
-    if (warping && panelDL)
-        WarpDrawListScale(panelDL,
-            ImVec2(ix + sz * 0.5f, iy + sz * 0.5f),
-            PopScale(g_AnimProgress));
+    if (panelDL) {
+        if (g_Settings.animStyle == 2) // Pop: scale the panel out of / into the icon
+            WarpDrawListScale(panelDL,
+                ImVec2(ix + sz * 0.5f, iy + sz * 0.5f),
+                PopScale(g_AnimProgress));
+        else // Fade (0) / Slide (1): fade the whole panel
+            WarpDrawListAlpha(panelDL, g_AnimProgress);
+    }
 
     if (disableItems) ImGui::PopItemFlag();
 }

@@ -22,7 +22,7 @@ struct Settings {
     float       iconY          = -9999.0f;
     bool        iconLocked     = false;
     int         columns        = 2;
-    int         animStyle      = 0; // 0=Fade, 1=Slide, 2=Pop
+    int         animStyle      = 2; // 0=Fade, 1=Slide, 2=Pop (default for new users)
     std::string customIconName;     // "" = embedded default
     int         multiLineDelay = 500; // ms between sequential line sends
     std::string messagePrefix;        // prepended to each sent line (after channel command)
