@@ -10,9 +10,11 @@
 // handler may run off the render thread, so the cached palette is mutex-guarded
 // and colours are applied on the render thread by the caller.
 
-#define PIEUI_THEME_VERSION 1u
+#define PIEUI_THEME_VERSION 2u
 
 // Fixed ABI mirrored from Pie UI. Colours are IM_COL32 values packed 0xAABBGGRR.
+// v2 adds the button trio: resting buttons are a dark, dimmed fill (NOT the
+// bright accent), leaning toward the accent only on hover/active.
 struct PieUiTheme {
     uint32_t version;
     uint32_t accent;
@@ -21,6 +23,9 @@ struct PieUiTheme {
     uint32_t text;
     uint32_t text_muted;
     uint32_t border;
+    uint32_t button;          // resting button fill (v2)
+    uint32_t button_hovered;  // hovered button fill (v2)
+    uint32_t button_active;   // pressed/active button fill (v2)
 };
 
 namespace PieTheme {

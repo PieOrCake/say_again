@@ -64,6 +64,9 @@ static void PushGW2Theme() {
         const ImVec4 muted    = PieTheme::Unpack(p.text_muted);
         const ImVec4 border   = PieTheme::Unpack(p.border);
         const ImVec4 accent   = PieTheme::Unpack(p.accent);
+        const ImVec4 button   = PieTheme::Unpack(p.button);
+        const ImVec4 buttonHov= PieTheme::Unpack(p.button_hovered);
+        const ImVec4 buttonAct= PieTheme::Unpack(p.button_active);
 
         themed.Colors[ImGuiCol_WindowBg]      = windowBg;
         themed.Colors[ImGuiCol_ChildBg]       = windowBg;
@@ -77,13 +80,15 @@ static void PushGW2Theme() {
         themed.Colors[ImGuiCol_TextDisabled]  = muted;
         themed.Colors[ImGuiCol_Border]        = border;
 
-        themed.Colors[ImGuiCol_Button]        = accent;
-        themed.Colors[ImGuiCol_ButtonHovered] = accent;
-        themed.Colors[ImGuiCol_ButtonActive]  = accent;
+        // Buttons use Pie's dedicated (dark) button trio, NOT the bright accent.
+        themed.Colors[ImGuiCol_Button]        = button;
+        themed.Colors[ImGuiCol_ButtonHovered] = buttonHov;
+        themed.Colors[ImGuiCol_ButtonActive]  = buttonAct;
+
+        // Accent is reserved for genuine highlights.
         themed.Colors[ImGuiCol_CheckMark]     = accent;
         themed.Colors[ImGuiCol_SliderGrab]    = accent;
         themed.Colors[ImGuiCol_SliderGrabActive] = accent;
-        themed.Colors[ImGuiCol_FrameBgActive] = accent;
         themed.Colors[ImGuiCol_HeaderHovered] = accent;
     }
     ImGui::GetStyle() = themed;
