@@ -275,8 +275,11 @@ void RenderFloatingIcon() {
         }
         s_IsLoading = (s_TickStaleTimer > 1.0f);
 
+        // Loading screens (waypoint/portal, incl. same-map) freeze UITick, and the
+        // world map covers the UI. Suppress rendering while either is true, but keep
+        // g_PanelVisible so an open panel re-animates back on return (resetting the
+        // progress replays the open animation) instead of forcing the user to reopen.
         if (s_IsLoading || g_MumbleLink->Context.IsMapOpen) {
-            g_PanelVisible = false;
             g_AnimProgress = 0.0f;
             return;
         }
