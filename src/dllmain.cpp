@@ -13,6 +13,7 @@
 #include "MapData.h"
 #include "LinkResolve.h"
 #include "DecoderClient.h"
+#include "PieTheme.h"
 #include "ChipTextEdit.h"
 #include <memory>
 
@@ -205,6 +206,7 @@ void SaveSettings() {
     j["multi_line_delay"]  = g_Settings.multiLineDelay;
     j["msg_prefix"]        = g_Settings.messagePrefix;
     j["channel"]           = g_Settings.channel;
+    j["use_pie_theme"]     = g_Settings.usePieTheme;
     std::ofstream f(dir + "/settings.json");
     if (f.is_open()) f << j.dump(2);
 }
@@ -227,6 +229,7 @@ static void LoadSettings() {
         if (j.contains("multi_line_delay")) g_Settings.multiLineDelay = j["multi_line_delay"].get<int>();
         if (j.contains("msg_prefix"))      g_Settings.messagePrefix  = j["msg_prefix"].get<std::string>();
         if (j.contains("channel"))         g_Settings.channel        = j["channel"].get<int>();
+        if (j.contains("use_pie_theme")) g_Settings.usePieTheme = j["use_pie_theme"].get<bool>();
     } catch (...) {}
 }
 
@@ -441,6 +444,12 @@ static void AddonOptions() {
     dirty |= ImGui::SliderInt("Grid columns", &g_Settings.columns, 1, 6);
     const char* animItems[] = { "Fade", "Slide", "Pop" };
     dirty |= ImGui::Combo("Animation", &g_Settings.animStyle, animItems, 3);
+
+    dirty |= ImGui::Checkbox("Use Pie UI theme (if available)", &g_Settings.usePieTheme);
+    ImGui::SameLine();
+    ImGui::TextDisabled("(?)");
+    if (ImGui::IsItemHovered())
+        ImGui::SetTooltip("When Pie UI is installed, match its colours.\nTurn off to always use Say Again's own theme.");
 
     ImGui::Spacing();
     RenderSectionHeader("Messages", kGold);
@@ -841,6 +850,7 @@ void AddonLoad(AddonAPI_t* aApi) {
     LoadMessages();
     ScanIconDir();
     DecoderClient::Init();
+    PieTheme::Init();
 
     APIDefs->Log(LOGL_INFO, "SayAgain", "Addon loaded");
 }
@@ -848,6 +858,7 @@ void AddonLoad(AddonAPI_t* aApi) {
 void AddonUnload() {
     FloatingIcon_Shutdown();
     DecoderClient::Shutdown();
+    PieTheme::Shutdown();
     APIDefs->Events_Unsubscribe("EV_MUMBLE_IDENTITY_UPDATED", OnMumbleIdentityUpdated);
     if (APIDefs->WndProc_Deregister) APIDefs->WndProc_Deregister(SayAgainWndProc);
     APIDefs->InputBinds_Deregister("KB_SAY_AGAIN_TOGGLE");

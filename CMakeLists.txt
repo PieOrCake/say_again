@@ -39,6 +39,7 @@ set(SOURCES
     src/FloatingIcon.cpp
     src/ChatLinks.cpp
     src/DecoderClient.cpp
+    src/PieTheme.cpp
     src/LinkResolve.cpp
     src/ChipResolve.cpp
     src/ChipTextEdit.cpp
