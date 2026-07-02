@@ -15,6 +15,7 @@
 #include "Messages.h"
 #include "MapData.h"
 #include "LinkResolve.h"
+#include "PieTheme.h"
 
 #define TEX_SA_ICON "TEX_SA_ICON"
 
@@ -307,13 +308,15 @@ void RenderFloatingIcon() {
             if (s_FlashTimer < 0.0f) s_FlashTimer = 0.0f;
             int flashAlpha = (int)(s_FlashTimer / 0.4f * 100.0f);
             ImVec2 fc(wp.x + sz * 0.5f, wp.y + sz * 0.5f);
-            dl->AddCircleFilled(fc, sz * 0.5f - 1.0f, IM_COL32(220, 190, 80, flashAlpha));
+            dl->AddCircleFilled(fc, sz * 0.5f - 1.0f,
+                PieTheme::AccentU32(IM_COL32(220, 190, 80, flashAlpha)));
         }
 
         // Persistent gold border when pinned (closeOnSend OFF)
         if (!g_Settings.closeOnSend) {
             ImVec2 bc(wp.x + sz * 0.5f, wp.y + sz * 0.5f);
-            dl->AddCircle(bc, sz * 0.5f - 1.0f, IM_COL32(220, 190, 80, 255), 0, 2.0f);
+            dl->AddCircle(bc, sz * 0.5f - 1.0f,
+                PieTheme::AccentU32(IM_COL32(220, 190, 80, 255)), 0, 2.0f);
         }
 
         // When locked, overlay an InvisibleButton to capture left and right clicks
@@ -428,7 +431,8 @@ void RenderFloatingIcon() {
     bool pinned = !g_Settings.closeOnSend;
     ImGui::PushStyleVar(ImGuiStyleVar_WindowBorderSize, pinned ? 1.5f : 0.0f);
     ImGui::PushStyleColor(ImGuiCol_Border,
-        pinned ? ImVec4(0.86f, 0.75f, 0.31f, alpha * 0.9f) : ImVec4(0, 0, 0, 0));
+        pinned ? PieTheme::AccentRGB(ImVec4(0.86f, 0.75f, 0.31f, alpha * 0.9f))
+               : ImVec4(0, 0, 0, 0));
 
     ImGuiWindowFlags panelFlags =
         ImGuiWindowFlags_NoTitleBar  | ImGuiWindowFlags_NoResize |
@@ -448,7 +452,7 @@ void RenderFloatingIcon() {
         static double s_HoverStart    = 0.0;
         int pendingRightClick = -1;
 
-        ImVec4 headerColour(0.86f, 0.75f, 0.31f, alpha);
+        ImVec4 headerColour = PieTheme::AccentRGB(ImVec4(0.86f, 0.75f, 0.31f, alpha));
 
         // Clickable channel header — shows the sticky channel, opens picker in set-only mode.
         // Plain ASCII only: the Nexus font has no glyphs for arrows/em-dashes etc.
@@ -498,7 +502,8 @@ void RenderFloatingIcon() {
                 ImVec2 rMax = { bMax.x - 2.0f, bMin.y + ts.y + 4.0f };
                 ImVec2 rMin = { rMax.x - ts.x - 6.0f, bMin.y + 2.0f };
                 bdl->AddRectFilled(rMin, rMax, IM_COL32(0, 0, 0, 160), 3.0f);
-                bdl->AddText({ rMin.x + 3.0f, rMin.y + 2.0f }, IM_COL32(200, 170, 100, 255), badge);
+                bdl->AddText({ rMin.x + 3.0f, rMin.y + 2.0f },
+                    PieTheme::AccentU32(IM_COL32(200, 170, 100, 255)), badge);
             }
             if (ImGui::IsItemClicked(ImGuiMouseButton_Right))
                 pendingRightClick = i;

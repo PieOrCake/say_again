@@ -27,6 +27,7 @@ struct Settings {
     int         multiLineDelay = 500; // ms between sequential line sends
     std::string messagePrefix;        // prepended to each sent line (after channel command)
     int         channel        = 0;   // sticky chat channel, index into Channels::kAll (0 = Say)
+    bool        usePieTheme    = true; // tint UI to match Pie UI's broadcast theme when available
 };
 extern Settings g_Settings;
 

@@ -13,6 +13,7 @@
 #include "MapData.h"
 #include "LinkResolve.h"
 #include "DecoderClient.h"
+#include "PieTheme.h"
 #include "ChipTextEdit.h"
 #include <memory>
 
@@ -54,7 +55,21 @@ static std::vector<ImGuiStyle> g_StyleStack;
 
 static void PushGW2Theme() {
     g_StyleStack.push_back(ImGui::GetStyle());
-    ImGui::GetStyle() = g_GW2Style;
+    ImGuiStyle themed = g_GW2Style;
+    if (PieTheme::Active()) {
+        // Pie ships its entire ImGui colour array; copy it straight into the
+        // style (indexed by ImGuiCol_). Clamp to the smaller of both counts so a
+        // count skew leaves trailing controls at our defaults, never OOB. Style
+        // geometry (rounding/padding/borders) from g_GW2Style is kept as-is.
+        // `accent` is separate and applied only to hand-drawn highlights.
+        const PieUiTheme p = PieTheme::Palette();
+        int n = (int)p.count;
+        if (n > ImGuiCol_COUNT)          n = ImGuiCol_COUNT;
+        if (n > PIEUI_THEME_MAX_COLORS)  n = PIEUI_THEME_MAX_COLORS;
+        for (int i = 0; i < n; ++i)
+            themed.Colors[i] = ImGui::ColorConvertU32ToFloat4(p.colors[i]);
+    }
+    ImGui::GetStyle() = themed;
 }
 
 static void PopGW2Theme() {
@@ -205,6 +220,7 @@ void SaveSettings() {
     j["multi_line_delay"]  = g_Settings.multiLineDelay;
     j["msg_prefix"]        = g_Settings.messagePrefix;
     j["channel"]           = g_Settings.channel;
+    j["use_pie_theme"]     = g_Settings.usePieTheme;
     std::ofstream f(dir + "/settings.json");
     if (f.is_open()) f << j.dump(2);
 }
@@ -227,6 +243,7 @@ static void LoadSettings() {
         if (j.contains("multi_line_delay")) g_Settings.multiLineDelay = j["multi_line_delay"].get<int>();
         if (j.contains("msg_prefix"))      g_Settings.messagePrefix  = j["msg_prefix"].get<std::string>();
         if (j.contains("channel"))         g_Settings.channel        = j["channel"].get<int>();
+        if (j.contains("use_pie_theme")) g_Settings.usePieTheme = j["use_pie_theme"].get<bool>();
     } catch (...) {}
 }
 
@@ -362,7 +379,7 @@ static void AddonOptions() {
     static const ImVec4 kGold(0.70f, 0.58f, 0.20f, 1.0f);
     bool dirty = false;
 
-    RenderSectionHeader("Behaviour", kGold);
+    RenderSectionHeader("Behaviour", PieTheme::AccentRGB(kGold));
     dirty |= ImGui::Checkbox("Direct post", &g_Settings.directPost);
     ImGui::SameLine();
     ImGui::TextDisabled("(?)");
@@ -392,7 +409,7 @@ static void AddonOptions() {
             ImGui::SetTooltip("Prepended to every sent line, after the channel command.\nLeave blank for no prefix.");
     }
     ImGui::Spacing();
-    RenderSectionHeader("Appearance", kGold);
+    RenderSectionHeader("Appearance", PieTheme::AccentRGB(kGold));
 
     // Icon selection dropdown
     {
@@ -442,8 +459,14 @@ static void AddonOptions() {
     const char* animItems[] = { "Fade", "Slide", "Pop" };
     dirty |= ImGui::Combo("Animation", &g_Settings.animStyle, animItems, 3);
 
+    dirty |= ImGui::Checkbox("Use Pie UI theme (if available)", &g_Settings.usePieTheme);
+    ImGui::SameLine();
+    ImGui::TextDisabled("(?)");
+    if (ImGui::IsItemHovered())
+        ImGui::SetTooltip("When Pie UI is installed, match its colours.\nTurn off to always use Say Again's own theme.");
+
     ImGui::Spacing();
-    RenderSectionHeader("Messages", kGold);
+    RenderSectionHeader("Messages", PieTheme::AccentRGB(kGold));
 
     if (!LinkResolve::Available()) {
         ImGui::TextColored(ImVec4(1.0f, 0.6f, 0.1f, 1.0f),
@@ -551,7 +574,7 @@ static void AddonOptions() {
             ImGui::GetWindowDrawList()->AddLine(
                 ImVec2(s_DragRowMins[dropVisIdx].x, lineY),
                 ImVec2(s_DragRowMaxs[dropVisIdx].x, lineY),
-                IM_COL32(220, 190, 80, 255), 2.0f);
+                PieTheme::AccentU32(IM_COL32(220, 190, 80, 255)), 2.0f);
         }
 
         if (ImGui::IsMouseReleased(ImGuiMouseButton_Left)) {
@@ -841,6 +864,7 @@ void AddonLoad(AddonAPI_t* aApi) {
     LoadMessages();
     ScanIconDir();
     DecoderClient::Init();
+    PieTheme::Init();
 
     APIDefs->Log(LOGL_INFO, "SayAgain", "Addon loaded");
 }
@@ -848,6 +872,7 @@ void AddonLoad(AddonAPI_t* aApi) {
 void AddonUnload() {
     FloatingIcon_Shutdown();
     DecoderClient::Shutdown();
+    PieTheme::Shutdown();
     APIDefs->Events_Unsubscribe("EV_MUMBLE_IDENTITY_UPDATED", OnMumbleIdentityUpdated);
     if (APIDefs->WndProc_Deregister) APIDefs->WndProc_Deregister(SayAgainWndProc);
     APIDefs->InputBinds_Deregister("KB_SAY_AGAIN_TOGGLE");
