@@ -71,7 +71,7 @@ ImU32 AccentU32(ImU32 fallback) {
     if (!Active()) return fallback;
     ImVec4 a = Unpack(Palette().accent);
     ImU32  alpha = (fallback >> IM_COL32_A_SHIFT) & 0xFF;
-    return IM_COL32((int)(a.x * 255.0f), (int)(a.y * 255.0f), (int)(a.z * 255.0f), (int)alpha);
+    return IM_COL32((int)(a.x * 255.0f + 0.5f), (int)(a.y * 255.0f + 0.5f), (int)(a.z * 255.0f + 0.5f), (int)alpha);
 }
 
 } // namespace PieTheme

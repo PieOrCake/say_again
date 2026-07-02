@@ -591,7 +591,7 @@ static void AddonOptions() {
             ImGui::GetWindowDrawList()->AddLine(
                 ImVec2(s_DragRowMins[dropVisIdx].x, lineY),
                 ImVec2(s_DragRowMaxs[dropVisIdx].x, lineY),
-                IM_COL32(220, 190, 80, 255), 2.0f);
+                PieTheme::AccentU32(IM_COL32(220, 190, 80, 255)), 2.0f);
         }
 
         if (ImGui::IsMouseReleased(ImGuiMouseButton_Left)) {
