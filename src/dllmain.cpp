@@ -55,7 +55,38 @@ static std::vector<ImGuiStyle> g_StyleStack;
 
 static void PushGW2Theme() {
     g_StyleStack.push_back(ImGui::GetStyle());
-    ImGui::GetStyle() = g_GW2Style;
+    ImGuiStyle themed = g_GW2Style;
+    if (PieTheme::Active()) {
+        const PieUiTheme p = PieTheme::Palette();
+        const ImVec4 windowBg = PieTheme::Unpack(p.window_bg);
+        const ImVec4 headerBg = PieTheme::Unpack(p.header_bg);
+        const ImVec4 text     = PieTheme::Unpack(p.text);
+        const ImVec4 muted    = PieTheme::Unpack(p.text_muted);
+        const ImVec4 border   = PieTheme::Unpack(p.border);
+        const ImVec4 accent   = PieTheme::Unpack(p.accent);
+
+        themed.Colors[ImGuiCol_WindowBg]      = windowBg;
+        themed.Colors[ImGuiCol_ChildBg]       = windowBg;
+        themed.Colors[ImGuiCol_PopupBg]       = windowBg;
+
+        themed.Colors[ImGuiCol_TitleBg]       = headerBg;
+        themed.Colors[ImGuiCol_TitleBgActive] = headerBg;
+        themed.Colors[ImGuiCol_Header]        = headerBg;
+
+        themed.Colors[ImGuiCol_Text]          = text;
+        themed.Colors[ImGuiCol_TextDisabled]  = muted;
+        themed.Colors[ImGuiCol_Border]        = border;
+
+        themed.Colors[ImGuiCol_Button]        = accent;
+        themed.Colors[ImGuiCol_ButtonHovered] = accent;
+        themed.Colors[ImGuiCol_ButtonActive]  = accent;
+        themed.Colors[ImGuiCol_CheckMark]     = accent;
+        themed.Colors[ImGuiCol_SliderGrab]    = accent;
+        themed.Colors[ImGuiCol_SliderGrabActive] = accent;
+        themed.Colors[ImGuiCol_FrameBgActive] = accent;
+        themed.Colors[ImGuiCol_HeaderHovered] = accent;
+    }
+    ImGui::GetStyle() = themed;
 }
 
 static void PopGW2Theme() {
