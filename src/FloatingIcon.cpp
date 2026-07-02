@@ -223,6 +223,26 @@ static float PopScale(float t) {
     return t * (1.0f + 0.15f * sinf(t * 3.14159f * 2.0f) * (1.0f - t));
 }
 
+// Scale every vertex position and clip rect of a window's draw list about
+// `anchor` by `s`. Used by the Pop animation to deform the panel (its contents
+// included) as it grows out of / collapses into the icon. Uniform scale keeps
+// clip rects axis-aligned. No-op at s == 1.
+static void WarpDrawListScale(ImDrawList* dl, ImVec2 anchor, float s) {
+    if (!dl || s == 1.0f) return;
+    for (int i = 0; i < dl->VtxBuffer.Size; ++i) {
+        ImDrawVert& v = dl->VtxBuffer[i];
+        v.pos.x = anchor.x + (v.pos.x - anchor.x) * s;
+        v.pos.y = anchor.y + (v.pos.y - anchor.y) * s;
+    }
+    for (int i = 0; i < dl->CmdBuffer.Size; ++i) {
+        ImVec4& c = dl->CmdBuffer[i].ClipRect; // (minX, minY, maxX, maxY), screen space
+        c.x = anchor.x + (c.x - anchor.x) * s;
+        c.y = anchor.y + (c.y - anchor.y) * s;
+        c.z = anchor.x + (c.z - anchor.x) * s;
+        c.w = anchor.y + (c.w - anchor.y) * s;
+    }
+}
+
 // Set to true one frame after a position reset to force ImGui to reposition the window
 static bool s_ForceReposition = true;
 
@@ -414,14 +434,6 @@ void RenderFloatingIcon() {
             panelPos.y += edgeTop ? -slideOff : slideOff;
         else
             panelPos.x += flipX ? slideOff : -slideOff;
-    } else if (g_Settings.animStyle == 2) {
-        float scale = PopScale(g_AnimProgress);
-        float cx = px + panelW * 0.5f;
-        float cy = py + panelH * 0.5f;
-        panelSize.x *= scale;
-        panelSize.y *= scale;
-        panelPos.x = cx - panelSize.x * 0.5f;
-        panelPos.y = cy - panelSize.y * 0.5f;
     }
 
     ImGui::SetNextWindowPos(panelPos, ImGuiCond_Always);
@@ -439,10 +451,18 @@ void RenderFloatingIcon() {
         ImGuiWindowFlags_NoMove      | ImGuiWindowFlags_NoScrollbar |
         ImGuiWindowFlags_NoDecoration;
 
-    bool disableItems = (g_AnimProgress < 0.1f);
+    // The scale-from-icon style (2) warps the panel after render, so ImGui's
+    // layout rects don't match the visual mid-animation. For that style: keep
+    // items full-colour (no disabled flag) but block clicks until essentially
+    // open. Fade/Slide keep their existing early disable behaviour unchanged.
+    bool warping      = (g_Settings.animStyle == 2);
+    bool acceptInput  = !warping || (g_AnimProgress > 0.98f);
+    bool disableItems = !warping && (g_AnimProgress < 0.1f);
+    ImDrawList* panelDL = nullptr;
     if (disableItems) ImGui::PushItemFlag(ImGuiItemFlags_Disabled, true);
 
     if (ImGui::Begin("##sa_panel", nullptr, panelFlags)) {
+        panelDL = ImGui::GetWindowDrawList(); // captured for the post-End() warp
         ImGui::PushStyleVar(ImGuiStyleVar_ItemSpacing, ImVec2(4, 4));
 
         // FIX: collect right-click outside PushID scope so popup ID matches BeginPopup.
@@ -460,7 +480,7 @@ void RenderFloatingIcon() {
             char chLbl[64];
             snprintf(chLbl, sizeof(chLbl), "Sending to %s", Channels::Label(g_Settings.channel));
             ImGui::PushStyleColor(ImGuiCol_Text, headerColour);
-            if (ImGui::Selectable(chLbl)) {
+            if (ImGui::Selectable(chLbl) && acceptInput) {
                 s_PickerMsgIdx = -1;
                 ImGui::OpenPopup("##chan");
             }
@@ -488,7 +508,7 @@ void RenderFloatingIcon() {
             if (sectionCol % cols != 0) ImGui::SameLine();
             ImGui::PushID(i);
             std::string lbl = LinkResolve::Display(visible[i]->shortLabel);
-            if (ImGui::Button(lbl.c_str(), ImVec2(btnW, btnH)))
+            if (ImGui::Button(lbl.c_str(), ImVec2(btnW, btnH)) && acceptInput)
                 PostMessage(*visible[i], Channels::Command(g_Settings.channel));
             // Badge overlay for multi-line messages
             if (visible[i]->fullText.find('\n') != std::string::npos) {
@@ -505,7 +525,7 @@ void RenderFloatingIcon() {
                 bdl->AddText({ rMin.x + 3.0f, rMin.y + 2.0f },
                     PieTheme::AccentU32(IM_COL32(200, 170, 100, 255)), badge);
             }
-            if (ImGui::IsItemClicked(ImGuiMouseButton_Right))
+            if (acceptInput && ImGui::IsItemClicked(ImGuiMouseButton_Right))
                 pendingRightClick = i;
             if (ImGui::IsItemHovered()) {
                 anyHovered = true;
@@ -570,6 +590,12 @@ void RenderFloatingIcon() {
     ImGui::End();
     ImGui::PopStyleColor();
     ImGui::PopStyleVar();
+
+    // Deform the whole panel about the icon for the scale-from-icon style.
+    if (warping && panelDL)
+        WarpDrawListScale(panelDL,
+            ImVec2(ix + sz * 0.5f, iy + sz * 0.5f),
+            PopScale(g_AnimProgress));
 
     if (disableItems) ImGui::PopItemFlag();
 }
