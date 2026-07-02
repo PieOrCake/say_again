@@ -20,7 +20,7 @@
 // --- Addon metadata ---
 #define V_MAJOR    0
 #define V_MINOR    9
-#define V_BUILD    3
+#define V_BUILD    4
 #define V_REVISION 0
 
 #define TEX_SA_ICON "TEX_SA_ICON"
