@@ -396,7 +396,7 @@ static void AddonOptions() {
     static const ImVec4 kGold(0.70f, 0.58f, 0.20f, 1.0f);
     bool dirty = false;
 
-    RenderSectionHeader("Behaviour", kGold);
+    RenderSectionHeader("Behaviour", PieTheme::AccentRGB(kGold));
     dirty |= ImGui::Checkbox("Direct post", &g_Settings.directPost);
     ImGui::SameLine();
     ImGui::TextDisabled("(?)");
@@ -426,7 +426,7 @@ static void AddonOptions() {
             ImGui::SetTooltip("Prepended to every sent line, after the channel command.\nLeave blank for no prefix.");
     }
     ImGui::Spacing();
-    RenderSectionHeader("Appearance", kGold);
+    RenderSectionHeader("Appearance", PieTheme::AccentRGB(kGold));
 
     // Icon selection dropdown
     {
@@ -483,7 +483,7 @@ static void AddonOptions() {
         ImGui::SetTooltip("When Pie UI is installed, match its colours.\nTurn off to always use Say Again's own theme.");
 
     ImGui::Spacing();
-    RenderSectionHeader("Messages", kGold);
+    RenderSectionHeader("Messages", PieTheme::AccentRGB(kGold));
 
     if (!LinkResolve::Available()) {
         ImGui::TextColored(ImVec4(1.0f, 0.6f, 0.1f, 1.0f),
